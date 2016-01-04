@@ -28,7 +28,7 @@ cleancov:
 	-coverage erase
 
 cleanmeta:
-	-rm -rf speedaemon.egg-info/
+	-rm -rf napfs.egg-info/
 
 cleanall: clean cleancov cleanmeta
 	-find . -type f -name "*~" -exec rm -f "{}" \;

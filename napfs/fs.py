@@ -71,7 +71,7 @@ def write_file_chunk(path, stream, offset, chunk_size):
         else:
             fcntl.flock(f, fcntl.LOCK_EX)
         f.seek(offset)
-        f.write(stream.read())
+        f.write(stream.read(chunk_size))
         return f.tell()
 
 

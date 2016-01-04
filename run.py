@@ -19,7 +19,7 @@ if __name__ == '__main__':
     httpd = make_server(
         '127.0.0.1',
         args.port,
-        napfs.create_app(args.data_dir))
+        napfs.create_app(napfs.Router(args.data_dir)))
 
     print("starting server on port %s" % args.port)
     print("data-dir %s" % args.data_dir)
