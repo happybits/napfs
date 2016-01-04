@@ -65,14 +65,7 @@ setup(
     url='https://github.com/happybits/napfs',
     packages=['napfs'],
     classifiers=[
-        # As from https://pypi.python.org/pypi?%3Aaction=list_classifiers
-        # 'Development Status :: 1 - Planning',
-        # 'Development Status :: 2 - Pre-Alpha',
-        # 'Development Status :: 3 - Alpha',
         'Development Status :: 4 - Beta',
-        #'Development Status :: 5 - Production/Stable',
-        # 'Development Status :: 6 - Mature',
-        # 'Development Status :: 7 - Inactive',
         'Programming Language :: Python',
         'Programming Language :: Python',
         'Programming Language :: Python :: Implementation :: CPython',

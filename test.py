@@ -11,14 +11,22 @@ import napfs.rest
 
 
 class TestMain(unittest.TestCase):
+
+    def router(self):
+        return napfs.Router()
+
+    def app(self, router=None):
+        return webtest.TestApp(napfs.create_app(router))
+
     def test_read_simple(self):
         uri = '/%s' % self.random_string(10)
-        path = napfs.fs.PATH_TPL % uri
+        router = self.router()
+        path = router.get_local_path(uri)
         input = self.random_string()
         with open(path, 'w+b') as fp:
             fp.write(input)
         try:
-            app = webtest.TestApp(napfs.rest.app)
+            app = self.app(router)
             res = app.get(uri)
             self.assertEqual(res.status_int, 200)
             self.assertEqual(res.body, input)
@@ -34,9 +42,11 @@ class TestMain(unittest.TestCase):
             self.random_string(2),
             self.random_string(10))
 
-        path = napfs.fs.PATH_TPL % uri
+        router = self.router()
+
+        path = router.get_local_path(uri)
         try:
-            app = webtest.TestApp(napfs.rest.app)
+            app = self.app(router)
             res = app.get(uri, expect_errors=True)
             self.assertEqual(res.status_code, 404)
             res = app.patch(uri, params=data,
@@ -80,8 +90,9 @@ class TestMain(unittest.TestCase):
             self.random_string(2),
             self.random_string(10))
 
+        router = self.router()
         try:
-            app = webtest.TestApp(napfs.rest.app)
+            app = self.app(router)
             res = app.post('/%s' % src, params=data,
                            headers={'Content-Type': 'text/plain'})
             self.assertEqual(res.status_code, 200)
@@ -94,21 +105,22 @@ class TestMain(unittest.TestCase):
             self.assertEqual(res.body, data)
 
         finally:
-            if os.path.exists(napfs.fs.PATH_TPL % src):
-                os.unlink(napfs.fs.PATH_TPL % src)
+            if os.path.exists(router.get_local_path(src)):
+                os.unlink(router.get_local_path(src))
 
-            if os.path.exists(napfs.fs.PATH_TPL % dst):
-                os.unlink(napfs.fs.PATH_TPL % dst)
+            if os.path.exists(router.get_local_path(dst)):
+                os.unlink(router.get_local_path(dst))
 
     def test_checksum(self):
         uri = "/%s" % self.random_string(10)
-        path = napfs.fs.PATH_TPL % uri
+        router = self.router()
+        path = router.get_local_path(uri)
         input = self.random_string()
         napfs.fs._initialize_file_path(path)
         with open(path, 'w+b') as fp:
             fp.write(input)
         try:
-            app = webtest.TestApp(napfs.rest.app)
+            app = self.app(router)
             res = app.get(uri, headers={'x-checksum': 'sha1'})
             # print res.body
             self.assertEqual(res.status_code, 200)

@@ -5,7 +5,7 @@ import hashlib
 import os
 import shutil
 
-__all__ = ['DATA_DIR']
+__all__ = []
 
 # a mapping of the names for checksum methods.
 supported_checksum_methods = {
@@ -13,12 +13,6 @@ supported_checksum_methods = {
     'sha1': hashlib.sha1,
     'sha256': hashlib.sha256,
 }
-
-# you really should override this.
-DATA_DIR = os.getenv("NAPFS_DATA_DIR", "/tmp/napfs")
-
-# path to data.
-PATH_TPL = DATA_DIR + "%s"
 
 
 def _mkdirs(dir_name):
@@ -36,24 +30,21 @@ def _mkdirs(dir_name):
 
 
 def copy_file(src, dst):
-    local_src = PATH_TPL % src
-    local_dst = PATH_TPL % dst
-    _mkdirs(os.path.dirname(local_dst))
-    shutil.copy(local_src, local_dst)
+    _mkdirs(os.path.dirname(dst))
+    shutil.copy(src, dst)
 
 
 def delete_file(path):
-    local_path = PATH_TPL % path
     try:
-        os.unlink(local_path)
+        os.unlink(path)
     except (IOError, OSError):
         pass
 
-    return False if os.path.exists(local_path) else True
+    return False if os.path.exists(path) else True
 
 
 def open_file(path, mode='rb'):
-    return open(PATH_TPL % path, mode=mode)
+    return open(path, mode=mode)
 
 
 def _initialize_file_path(path):
@@ -72,10 +63,9 @@ def _initialize_file_path(path):
 
 def write_file_chunk(path, stream, offset, chunk_size):
 
-    local_path = PATH_TPL % path
-    _initialize_file_path(local_path)
+    _initialize_file_path(path)
 
-    with open(local_path, 'rb+') as f:
+    with open(path, 'rb+') as f:
         if chunk_size:
             fcntl.lockf(f, fcntl.LOCK_EX, chunk_size, offset, 0)
         else:

@@ -81,7 +81,7 @@ if __name__ == '__main__':
     if args.use_threads:
         PRINT_DEBUG = False
 
-    path = "/_test/%s.txt" % uuid.uuid4()
+    path = "/tmp/napfs/_test/%s.txt" % uuid.uuid4()
 
     chunk = ''
     while len(chunk) < args.chunk_size:

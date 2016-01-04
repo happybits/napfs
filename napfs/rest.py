@@ -3,6 +3,7 @@ import io
 import mimetypes
 import re
 import time
+import os
 
 # 3rd-party
 import falcon
@@ -12,7 +13,7 @@ from .fs import copy_file, delete_file, open_file, \
     write_file_chunk, read_file_chunk, checksum_response
 
 # we only export the app var
-__all__ = ['app']
+__all__ = ['create_app', 'Router']
 
 # regex for matching byte range header
 _BYTE_RANGE_HEADER_PATTERN = re.compile(r'^bytes\=([0-9]+)\-([0-9]+)?$')
@@ -52,8 +53,22 @@ class Router(object):
 
     We use it to route all the requests based on the request method.
     """
-
     allowed_methods = ['GET', 'PUT', 'PATCH', 'POST', 'DELETE']
+
+    __slots__ = ['data_dir', 'path_tpl']
+
+    def __init__(self, data_dir=None):
+        if data_dir is None:
+            data_dir = os.getenv('NAPFS_DEFAULT_DATA_DIR', '/tmp/napfs')
+
+        self.set_data_dir(data_dir)
+
+    def set_data_dir(self, data_dir):
+        self.data_dir = data_dir
+        self.path_tpl = data_dir + "%s"
+
+    def get_local_path(self, uri):
+        return self.path_tpl % uri
 
     def __call__(self, req, resp):
         """
@@ -98,7 +113,7 @@ class Router(object):
             req.get_header('range'))
 
         try:
-            f = open_file(path, 'rb')
+            f = open_file(self.get_local_path(path), 'rb')
         except IOError:
             raise falcon.HTTPNotFound()
 
@@ -162,13 +177,22 @@ class Router(object):
                 raise falcon.HTTPInvalidParam(
                     'invalid source %s' % src, param_name='x-source')
 
-            copy_file(src, path)
+            copy_file(self.get_local_path(src), self.get_local_path(path))
             resp.body = 'OK'
             resp.append_header('x-start', "%.6f" % start)
             resp.append_header('x-end', "%.6f" % time.time())
         else:
-            self.on_delete(req, resp)
-            self.on_patch(req, resp)
+            start = time.time()
+            path = req.path
+            delete_file(self.get_local_path(path))
+            write_file_chunk(self.get_local_path(path),
+                             stream=req.stream,
+                             offset=0,
+                             chunk_size=int(req.get_header('Content-Length')))
+
+            resp.body = 'OK'
+            resp.append_header('x-start', "%.6f" % start)
+            resp.append_header('x-end', "%.6f" % time.time())
 
     def on_patch(self, req, resp):
 
@@ -187,7 +211,7 @@ class Router(object):
         except TypeError:
             offset = 0
 
-        write_file_chunk(path,
+        write_file_chunk(self.get_local_path(path),
                          stream=req.stream,
                          offset=offset,
                          chunk_size=int(req.get_header('Content-Length')))
@@ -206,7 +230,7 @@ class Router(object):
         """
 
         path = req.path
-        res = delete_file(path)
+        res = delete_file(self.get_local_path(path))
 
         if not res:
             raise falcon.HTTPInternalServerError(
@@ -217,8 +241,14 @@ class Router(object):
         resp.body = 'OK'
 
 
-# create the app.
-app = falcon.API()
+def create_app(router=None):
+    # create the app.
+    app = falcon.API()
 
-# attach the resource.
-app.add_sink(Router(), '/')
+    if router is None:
+        router = Router()
+
+    # attach the resource.
+    app.add_sink(router, '/')
+
+    return app
