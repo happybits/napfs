@@ -7,9 +7,9 @@ from setuptools import setup, Extension
 import sys
 import imp
 
-# by default it will use cython if available, unless explicitly disabled
-# build by doing CYTHON_DISABLED=1 python setup.py build_ext --inplace
-CYTHON_ENABLED = False if os.getenv('CYTHON_DISABLED', False) else True
+# allow to build with cython, but disable by default.
+# build by doing CYTHON_ENABLED=1 python setup.py build_ext --inplace
+CYTHON_ENABLED = True if os.getenv('CYTHON_ENABLED', False) else False
 
 MYDIR = path.abspath(os.path.dirname(__file__))
 long_description = open(os.path.join(MYDIR, 'README.md')).read()
