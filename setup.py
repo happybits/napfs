@@ -29,7 +29,7 @@ else:
         CYTHON = True
     except ImportError:
         print('\nNOTE: Cython not installed. '
-              'hbom will still work fine, but may run '
+              'napfs will still work fine, but may run '
               'a bit slower.\n')
         CYTHON = False
 
@@ -65,9 +65,26 @@ setup(
     url='https://github.com/happybits/napfs',
     packages=['napfs'],
     classifiers=[
+        # As from https://pypi.python.org/pypi?%3Aaction=list_classifiers
+        # 'Development Status :: 1 - Planning',
+        # 'Development Status :: 2 - Pre-Alpha',
+        # 'Development Status :: 3 - Alpha',
         'Development Status :: 4 - Beta',
+        #'Development Status :: 5 - Production/Stable',
+        # 'Development Status :: 6 - Mature',
+        # 'Development Status :: 7 - Inactive',
         'Programming Language :: Python',
+        'Programming Language :: Python',
+        'Programming Language :: Python :: Implementation :: CPython',
+        'Programming Language :: Python :: Implementation :: PyPy',
+        'Programming Language :: Python :: 2',
         'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.3',
+        'Programming Language :: Python :: 3.4',
+        'Programming Language :: Python :: 3.5',
+        'Environment :: Web Environment',
+        'Operating System :: POSIX',
     ],
     license='MIT',
     install_requires=[
