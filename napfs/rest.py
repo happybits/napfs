@@ -1,69 +1,27 @@
-# std lib
 import io
 import mimetypes
-import re
 import time
+import falcon
 import os
 
-# 3rd-party
-import falcon
+from .fs import open_file, read_file_chunk, checksum_response, copy_file, \
+    delete_file, write_file_chunk
+from .data import SpeedyInfo
 
-# internal
-from .fs import copy_file, delete_file, open_file, \
-    write_file_chunk, read_file_chunk, checksum_response
-
-# we only export the app var
-__all__ = ['create_app', 'Router']
-
-# regex for matching byte range header
-_BYTE_RANGE_HEADER_PATTERN = re.compile(r'^bytes\=([0-9]+)\-([0-9]+)?$')
-
-
-def _parse_byte_range_header(range_header):
-    """
-    when the client/browser sends a byte range request header, parse it into
-    min/max ints. If the client sends a header in the form of:
-
-      Range: bytes=100-
-
-    with no second param, use an empty string to indicate the wild-card max
-    value.
-
-    If we can't parse the header, assume they want the whole file.
-    Maybe we should throw an error if it is not the right form?
-    And only assume all content if the client sends no range header at all?
-
-    :param range_header: str
-    :return: int, int
-    """
-    try:
-        m = re.match(_BYTE_RANGE_HEADER_PATTERN, range_header)
-        first_byte = int(m.group(1))
-        last_byte = '' if m.group(2) is None else int(m.group(2))
-    except(AttributeError, TypeError):
-        first_byte = 0
-        last_byte = ''
-    return first_byte, last_byte
+from .helpers import parse_byte_range_header, \
+    get_max_from_contiguous_byte_ranges, parse_byte_ranges_from_list, \
+    condense_byte_ranges
 
 
 class Router(object):
-    """
-    This is a falcon sink:
-        http://falcon.readthedocs.org/en/stable/api/api.html#falcon.API.add_sink
-
-    We use it to route all the requests based on the request method.
-    """
     allowed_methods = ['GET', 'PUT', 'PATCH', 'POST', 'DELETE']
 
     __slots__ = ['data_dir', 'path_tpl']
 
     def __init__(self, data_dir=None):
         if data_dir is None:
-            data_dir = os.getenv('NAPFS_DEFAULT_DATA_DIR', '/tmp/napfs')
+            data_dir = os.getenv('NAPFS_DATA_DIR', '/tmp/speedaemon')
 
-        self.set_data_dir(data_dir)
-
-    def set_data_dir(self, data_dir):
         self.data_dir = data_dir
         self.path_tpl = data_dir + "%s"
 
@@ -109,8 +67,24 @@ class Router(object):
         if not path:
             raise falcon.HTTPNotFound()
 
-        first_byte, last_byte = _parse_byte_range_header(
+        first_byte, last_byte = parse_byte_range_header(
             req.get_header('range'))
+
+        info = SpeedyInfo(path)
+        if not info.disabled:
+            byte_ranges = parse_byte_ranges_from_list(info.parts)
+
+            max_last_byte = get_max_from_contiguous_byte_ranges(byte_ranges)
+            if last_byte == '' or last_byte > max_last_byte:
+                last_byte = max_last_byte
+
+            if not byte_ranges:
+                raise falcon.HTTPNotFound()
+
+            min_first_byte = min([row[0] for row in byte_ranges])
+
+            if first_byte < min_first_byte:
+                first_byte = min_first_byte
 
         try:
             f = open_file(self.get_local_path(path), 'rb')
@@ -136,7 +110,7 @@ class Router(object):
             resp.append_header('Accept-Ranges', 'bytes')
             resp.append_header(
                 'Content-Range', 'bytes %s-%s/%s' %
-                (first_byte, last_byte, max_last_byte + 1))
+                                 (first_byte, last_byte, max_last_byte + 1))
             resp.status = falcon.HTTP_206
         else:
             resp.status = falcon.HTTP_200
@@ -160,6 +134,8 @@ class Router(object):
                 mimetypes.guess_type(path)[0] or 'application/octet-stream')
         resp.stream = response()
 
+        self._add_speedy_info_to_resp(resp, info)
+
     def on_post(self, req, resp):
         """
         create a file. Overwrites if it exists.
@@ -170,6 +146,8 @@ class Router(object):
         :return: None
         """
         src = req.get_header('x-source')
+        headers = self._extract_headers(req)
+
         path = req.path
         if src:
             start = time.time()
@@ -178,21 +156,32 @@ class Router(object):
                     'invalid source %s' % src, param_name='x-source')
 
             copy_file(self.get_local_path(src), self.get_local_path(path))
+            src_info = SpeedyInfo(src)
+            headers.update(src_info.headers)
+            info = SpeedyInfo(path, reset=True, parts=src_info.parts,
+                              headers=headers)
+
             resp.body = 'OK'
             resp.append_header('x-start', "%.6f" % start)
             resp.append_header('x-end', "%.6f" % time.time())
+
         else:
             start = time.time()
+            content_length = int(req.get_header('Content-Length'))
             path = req.path
             delete_file(self.get_local_path(path))
             write_file_chunk(self.get_local_path(path),
                              stream=req.stream,
                              offset=0,
-                             chunk_size=int(req.get_header('Content-Length')))
+                             chunk_size=content_length)
 
             resp.body = 'OK'
             resp.append_header('x-start', "%.6f" % start)
             resp.append_header('x-end', "%.6f" % time.time())
+            info = SpeedyInfo(path, parts=['%d-%d' % (0, content_length - 1)],
+                              headers=headers, reset=True)
+
+        self._add_speedy_info_to_resp(resp, info)
 
     def on_patch(self, req, resp):
 
@@ -211,14 +200,22 @@ class Router(object):
         except TypeError:
             offset = 0
 
+        content_length = int(req.get_header('Content-Length'))
+
         write_file_chunk(self.get_local_path(path),
                          stream=req.stream,
                          offset=offset,
-                         chunk_size=int(req.get_header('Content-Length')))
+                         chunk_size=content_length)
 
         resp.body = 'OK'
         resp.append_header('x-start', "%.6f" % start)
         resp.append_header('x-end', "%.6f" % time.time())
+
+        path = req.path
+        headers = self._extract_headers(req)
+        info = SpeedyInfo(path=path, parts=[
+            '%d-%d' % (offset, offset + content_length - 1)], headers=headers)
+        self._add_speedy_info_to_resp(resp, info)
 
     def on_delete(self, req, resp):
         """
@@ -240,15 +237,24 @@ class Router(object):
 
         resp.body = 'OK'
 
+        SpeedyInfo(path, reset=True)
 
-def create_app(router=None):
-    # create the app.
-    app = falcon.API()
+    @staticmethod
+    def _extract_headers(req):
+        try:
+            headers = {k.lower(): v.lower() for k, v in req.headers.items()}
+            headers = {k[7:]: v for k, v in headers.items() if
+                       k.startswith('x-head-')}
+            return headers
+        except TypeError:
+            return {}
 
-    if router is None:
-        router = Router()
-
-    # attach the resource.
-    app.add_sink(router, '/')
-
-    return app
+    @staticmethod
+    def _add_speedy_info_to_resp(resp, info):
+        if info.disabled:
+            return
+        parts = ['%d-%d' % (row[0], row[1]) for row in condense_byte_ranges(
+            parse_byte_ranges_from_list(info.parts))]
+        resp.append_header('x-parts', ','.join(parts))
+        for k, v in info.headers.items():
+            resp.append_header('x-head-{name}'.format(name=k), v)

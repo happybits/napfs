@@ -83,9 +83,9 @@ def read_file_chunk(f, first_byte, length):
 
     this is especially important for really big files.
 
-    :param local_path:
+    :param f:
+    :param length:
     :param first_byte:
-    :param last_byte:
     :return:
     """
     def response():
