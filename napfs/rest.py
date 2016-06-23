@@ -20,7 +20,7 @@ class Router(object):
 
     def __init__(self, data_dir=None):
         if data_dir is None:
-            data_dir = os.getenv('NAPFS_DATA_DIR', '/tmp/speedaemon')
+            data_dir = os.getenv('NAPFS_DATA_DIR', '/tmp/napfs')
 
         self.data_dir = data_dir
         self.path_tpl = data_dir + "%s"

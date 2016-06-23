@@ -5,15 +5,20 @@ import random
 import webtest
 import os
 import shutil
+import redislite
+import napfs
+import napfs.data
+from napfs.helpers import condense_byte_ranges
 
-os.unsetenv('NAPFS_REDIS_PORT')
-os.environ['NAPFS_REDIS_DB'] = '/tmp/speedaemon-test.db'
-os.environ['NAPFS_DATA_DIR'] = '/tmp/test-speedaemon'
+redis_connection = redislite.StrictRedis(dbfilename='/tmp/test-napfs.db')
+NAPFS_DATA_DIR = '/tmp/test-napfs'
 
-import napfs.data  # noqa
-from napfs.data import redis_connection  # noqa
-from napfs.helpers import condense_byte_ranges  # noqa
-from napfs import create_app  # noqa
+
+def create_app():
+    return webtest.TestApp(napfs.create_app(napfs.Router(NAPFS_DATA_DIR)))
+
+# patch napfs redis connection
+napfs.data.redis_connection = redis_connection
 
 
 def random_string(length=1024):
@@ -23,15 +28,12 @@ def random_string(length=1024):
 
 
 def clean():
-    shutil.rmtree(os.environ['NAPFS_DATA_DIR'])
+    shutil.rmtree(NAPFS_DATA_DIR)
     if redis_connection:
         redis_connection.flushdb()
 
 
 class TestMain(unittest.TestCase):
-    @staticmethod
-    def app():
-        return webtest.TestApp(create_app())
 
     def test_read_write(self):
         data = random_string()
@@ -40,7 +42,7 @@ class TestMain(unittest.TestCase):
             random_string(2),
             random_string(10))
 
-        app = self.app()
+        app = create_app()
         res = app.get(uri, expect_errors=True)
         self.assertEqual(res.status_code, 404)
         res = app.patch(uri, params=data,
@@ -96,7 +98,7 @@ class TestMain(unittest.TestCase):
             random_string(2),
             random_string(10))
 
-        app = self.app()
+        app = create_app()
 
         res = app.post('/%s' % src, params=data,
                        headers={'Content-Type': 'text/plain'})
@@ -112,7 +114,7 @@ class TestMain(unittest.TestCase):
     def test_checksum(self):
         uri = "/%s" % random_string(10)
         data = random_string()
-        app = self.app()
+        app = create_app()
         app.post(uri, headers={'Content-Type': 'text/plain'}, params=data)
         res = app.get(uri, headers={'x-checksum': 'sha1'})
         self.assertEqual(res.status_code, 200)
@@ -137,7 +139,7 @@ class ByteRangeTests(unittest.TestCase):
 
 class TestLongPatch(unittest.TestCase):
     def setUp(self):
-        self.app = webtest.TestApp(create_app())
+        self.app = create_app()
 
     def tearDown(self):
         clean()
@@ -179,7 +181,7 @@ class TestLongPatch(unittest.TestCase):
 
 class NonSequentialTest(unittest.TestCase):
     def setUp(self):
-        self.app = webtest.TestApp(create_app())
+        self.app = create_app()
 
     def tearDown(self):
         clean()
@@ -210,7 +212,7 @@ class NonSequentialTest(unittest.TestCase):
 
 class ExpireDataTest(unittest.TestCase):
     def setUp(self):
-        self.app = webtest.TestApp(create_app())
+        self.app = create_app()
 
     def tearDown(self):
         clean()
@@ -239,7 +241,7 @@ class ExpireDataTest(unittest.TestCase):
 
 class SingleByteTest(unittest.TestCase):
     def setUp(self):
-        self.app = webtest.TestApp(create_app())
+        self.app = create_app()
 
     def tearDown(self):
         clean()
@@ -259,7 +261,7 @@ class SingleByteTest(unittest.TestCase):
 
 class SingleByteOffsetTest(unittest.TestCase):
     def setUp(self):
-        self.app = webtest.TestApp(create_app())
+        self.app = create_app()
 
     def tearDown(self):
         clean()
@@ -279,7 +281,7 @@ class SingleByteOffsetTest(unittest.TestCase):
 
 class VideoContentTypeCheck(unittest.TestCase):
     def setUp(self):
-        self.app = webtest.TestApp(create_app())
+        self.app = create_app()
 
     def tearDown(self):
         clean()
@@ -305,7 +307,7 @@ class VideoContentTypeCheck(unittest.TestCase):
 class NoRedisTest(unittest.TestCase):
 
     def setUp(self):
-        self.app = webtest.TestApp(create_app())
+        self.app = create_app()
         napfs.data.redis_connection = None
 
     def tearDown(self):

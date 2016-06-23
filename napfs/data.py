@@ -3,12 +3,12 @@ from .helpers import parse_byte_ranges_from_list, \
     get_max_from_contiguous_byte_ranges
 
 try:
-    import redis
+    import redis  # noqa
 except ImportError:
     redis = None
 
 try:
-    import redislite
+    import redislite  # noqa
 except ImportError:
     redislite = None
 
