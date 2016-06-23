@@ -1,6 +1,7 @@
 import falcon
 from .instrumentation import trace, wrap_app
 from .rest import Router
+from .version import __version__
 
 __all__ = ['Router', 'create_app']
 

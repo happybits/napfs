@@ -1,36 +1,14 @@
-import os
 from .helpers import parse_byte_ranges_from_list, \
     get_max_from_contiguous_byte_ranges
 
-try:
-    import redis  # noqa
-except ImportError:
-    redis = None
 
-try:
-    import redislite  # noqa
-except ImportError:
-    redislite = None
-
-_redis_port = os.getenv('NAPFS_REDIS_PORT', None)
-_redis_db = os.getenv('NAPFS_REDIS_DB', None)
-
-if _redis_port is not None and redis is not None:
-    redis_connection = redis.StrictRedis(port=int(_redis_port))
-elif _redis_db is not None and redislite is not None:
-    redis_connection = redislite.StrictRedis(dbfilename=_redis_db)
-else:
-    redis_connection = None
-
-
-class SpeedyInfo(object):
+class MetaData(object):
     __slots__ = ['disabled', 'headers', 'parts']
 
     HEADER_EXPIRE_TIMEOUT = 3600
     PARTS_EXPIRE_TIMEOUT = 86400 * 3
 
-    def __init__(self, path, headers=None, parts=None, reset=False):
-        db = redis_connection
+    def __init__(self, path, headers=None, parts=None, reset=False, db=None):
         self.disabled = True if db is None else False
         self.headers = {}
         self.parts = []

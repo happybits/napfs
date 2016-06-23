@@ -2,11 +2,10 @@ import io
 import mimetypes
 import time
 import falcon
-import os
 
 from .fs import open_file, read_file_chunk, checksum_response, copy_file, \
     delete_file, write_file_chunk
-from .data import SpeedyInfo
+from .data import MetaData
 
 from .helpers import parse_byte_range_header, \
     get_max_from_contiguous_byte_ranges, parse_byte_ranges_from_list, \
@@ -16,14 +15,12 @@ from .helpers import parse_byte_range_header, \
 class Router(object):
     allowed_methods = ['GET', 'PUT', 'PATCH', 'POST', 'DELETE']
 
-    __slots__ = ['data_dir', 'path_tpl']
+    __slots__ = ['data_dir', 'path_tpl', '_db']
 
-    def __init__(self, data_dir=None):
-        if data_dir is None:
-            data_dir = os.getenv('NAPFS_DATA_DIR', '/tmp/napfs')
-
+    def __init__(self, data_dir, redis_connection=None):
         self.data_dir = data_dir
         self.path_tpl = data_dir + "%s"
+        self._db = redis_connection
 
     def get_local_path(self, uri):
         return self.path_tpl % uri
@@ -70,9 +67,9 @@ class Router(object):
         first_byte, last_byte = parse_byte_range_header(
             req.get_header('range'))
 
-        info = SpeedyInfo(path)
-        if not info.disabled:
-            byte_ranges = parse_byte_ranges_from_list(info.parts)
+        data = self._data(path=path)
+        if not data.disabled:
+            byte_ranges = parse_byte_ranges_from_list(data.parts)
 
             max_last_byte = get_max_from_contiguous_byte_ranges(byte_ranges)
             if last_byte == '' or last_byte > max_last_byte:
@@ -134,7 +131,7 @@ class Router(object):
                 mimetypes.guess_type(path)[0] or 'application/octet-stream')
         resp.stream = response()
 
-        self._add_speedy_info_to_resp(resp, info)
+        self._add_metadata_to_resp(resp, data)
 
     def on_post(self, req, resp):
         """
@@ -156,9 +153,9 @@ class Router(object):
                     'invalid source %s' % src, param_name='x-source')
 
             copy_file(self.get_local_path(src), self.get_local_path(path))
-            src_info = SpeedyInfo(src)
-            headers.update(src_info.headers)
-            info = SpeedyInfo(path, reset=True, parts=src_info.parts,
+            src_data = self._data(path=src)
+            headers.update(src_data.headers)
+            data = self._data(path=path, reset=True, parts=src_data.parts,
                               headers=headers)
 
             resp.body = 'OK'
@@ -178,10 +175,11 @@ class Router(object):
             resp.body = 'OK'
             resp.append_header('x-start', "%.6f" % start)
             resp.append_header('x-end', "%.6f" % time.time())
-            info = SpeedyInfo(path, parts=['%d-%d' % (0, content_length - 1)],
+            data = self._data(path=path,
+                              parts=['%d-%d' % (0, content_length - 1)],
                               headers=headers, reset=True)
 
-        self._add_speedy_info_to_resp(resp, info)
+        self._add_metadata_to_resp(resp, data)
 
     def on_patch(self, req, resp):
 
@@ -213,9 +211,9 @@ class Router(object):
 
         path = req.path
         headers = self._extract_headers(req)
-        info = SpeedyInfo(path=path, parts=[
+        data = self._data(path=path, parts=[
             '%d-%d' % (offset, offset + content_length - 1)], headers=headers)
-        self._add_speedy_info_to_resp(resp, info)
+        self._add_metadata_to_resp(resp, data)
 
     def on_delete(self, req, resp):
         """
@@ -237,7 +235,7 @@ class Router(object):
 
         resp.body = 'OK'
 
-        SpeedyInfo(path, reset=True)
+        self._data(path=path, reset=True)
 
     @staticmethod
     def _extract_headers(req):
@@ -250,11 +248,14 @@ class Router(object):
             return {}
 
     @staticmethod
-    def _add_speedy_info_to_resp(resp, info):
-        if info.disabled:
+    def _add_metadata_to_resp(resp, data):
+        if data.disabled:
             return
         parts = ['%d-%d' % (row[0], row[1]) for row in condense_byte_ranges(
-            parse_byte_ranges_from_list(info.parts))]
+            parse_byte_ranges_from_list(data.parts))]
         resp.append_header('x-parts', ','.join(parts))
-        for k, v in info.headers.items():
+        for k, v in data.headers.items():
             resp.append_header('x-head-{name}'.format(name=k), v)
+
+    def _data(self, **kwargs):
+        return MetaData(db=self._db, **kwargs)

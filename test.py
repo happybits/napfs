@@ -7,7 +7,6 @@ import os
 import shutil
 import redislite
 import napfs
-import napfs.data
 from napfs.helpers import condense_byte_ranges
 
 redis_connection = redislite.StrictRedis(dbfilename='/tmp/test-napfs.db')
@@ -15,10 +14,15 @@ NAPFS_DATA_DIR = '/tmp/test-napfs'
 
 
 def create_app():
-    return webtest.TestApp(napfs.create_app(napfs.Router(NAPFS_DATA_DIR)))
+    router = napfs.Router(
+        data_dir=NAPFS_DATA_DIR,
+        redis_connection=redis_connection)
+    return webtest.TestApp(napfs.create_app(router))
 
-# patch napfs redis connection
-napfs.data.redis_connection = redis_connection
+
+def create_app_no_redis():
+    router = napfs.Router(data_dir=NAPFS_DATA_DIR)
+    return webtest.TestApp(napfs.create_app(router))
 
 
 def random_string(length=1024):
@@ -34,7 +38,6 @@ def clean():
 
 
 class TestMain(unittest.TestCase):
-
     def test_read_write(self):
         data = random_string()
         uri = "/test/%s/%s/%s.txt" % (
@@ -305,14 +308,11 @@ class VideoContentTypeCheck(unittest.TestCase):
 
 
 class NoRedisTest(unittest.TestCase):
-
     def setUp(self):
-        self.app = create_app()
-        napfs.data.redis_connection = None
+        self.app = create_app_no_redis()
 
     def tearDown(self):
         clean()
-        napfs.data.redis_connection = redis_connection
 
     def test_read_write(self):
         data = random_string()
@@ -384,6 +384,7 @@ class NoRedisTest(unittest.TestCase):
         app.post(uri, headers={'Content-Type': 'text/plain'}, params=data)
         res = app.get(uri, headers={'x-checksum': 'sha1'})
         self.assertEqual(res.status_code, 200)
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
