@@ -26,7 +26,7 @@ if newrelic is not None:
 
         @functools.wraps(f)
         def inner(*args, **kwargs):
-            if group == "Python/speedaemon":
+            if group == "Python/napfs":
                 set_transaction_name(txn_name)
             with FunctionTrace(
                 transaction=current_transaction(),
@@ -45,10 +45,10 @@ if newrelic is not None:
 
     # noinspection PyBroadException
     try:
-        newrelic_config = os.getenv('NEW_RELIC_CONFIG_FILE',
-                                    '/etc/newrelic-speedaemon.ini')
+        newrelic_config = os.getenv('NEW_RELIC_CONFIG_FILE', None)
         if newrelic_config and os.path.getsize(newrelic_config) > 0:
-            initialize(newrelic_config, os.getenv('NAPFS_ENV', 'development'))
+            environment = os.getenv('NEW_RELIC_CONFIG_ENV', 'development')
+            initialize(newrelic_config, environment=environment)
     except Exception:
         pass
 

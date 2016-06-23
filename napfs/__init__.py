@@ -1,7 +1,7 @@
 import falcon
 from .instrumentation import trace, wrap_app
 from .rest import Router
-from .version import __version__
+from .version import __version__  # noqa
 
 __all__ = ['Router', 'create_app']
 
@@ -12,9 +12,8 @@ Router.on_patch = trace(Router.on_patch, group=group)
 Router.on_delete = trace(Router.on_delete, group=group)
 
 
-def create_app(router=None):
+def create_app(data_dir, redis_connection=None):
+    router = Router(data_dir=data_dir, redis_connection=redis_connection)
     app = falcon.API()
-    if router is None:
-        router = Router()
     app.add_sink(router, '/')
     return wrap_app(app)
