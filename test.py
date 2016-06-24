@@ -60,7 +60,7 @@ class TestMain(unittest.TestCase):
         chunk = random_string()
         app.patch('%s?offset=%s' % (uri, len(data)), params=chunk,
                   headers={'Content-Type': 'text/plain',
-                           'x-head-bazz': 'test'})
+                           'x-head-bazz': 'test', 'x-head-uploadrate': '1234'})
 
         res = app.get(uri)
         self.assertEqual(res.status_code, 200)

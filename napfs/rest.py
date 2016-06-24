@@ -255,7 +255,12 @@ class Router(object):
             parse_byte_ranges_from_list(data.parts))]
         resp.append_header('x-parts', ','.join(parts))
         for k, v in data.headers.items():
-            resp.append_header('x-head-{name}'.format(name=k), v)
+            try:
+                resp.append_header(
+                    'x-head-{name}'.format(name=k),
+                    '{}'.format(v))
+            except:
+                pass
 
     def _data(self, **kwargs):
         return MetaData(db=self._db, **kwargs)

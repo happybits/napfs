@@ -6,6 +6,7 @@ import argparse
 
 # import library
 import napfs
+import redislite
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='kick off the napfs server')
@@ -19,7 +20,9 @@ if __name__ == '__main__':
     httpd = make_server(
         '127.0.0.1',
         args.port,
-        napfs.create_app(data_dir=args.data_dir))
+        napfs.create_app(
+            data_dir=args.data_dir,
+            redis_connection=redislite.StrictRedis()))
 
     print("starting server on port %s" % args.port)
     print("data-dir %s" % args.data_dir)
