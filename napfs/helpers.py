@@ -50,7 +50,7 @@ def parse_byte_ranges_from_list(parts):
     return sorted(ranges)
 
 
-def get_max_from_contiguous_byte_ranges(parts):
+def get_last_contiguous_byte(parts):
     """
     given a parsed list of min/max byte ranges in ascending order,
     figure out what is the max contiguous byte range uploaded so far.

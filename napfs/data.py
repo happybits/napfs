@@ -1,5 +1,5 @@
 from .helpers import parse_byte_ranges_from_list, \
-    get_max_from_contiguous_byte_ranges
+    get_last_contiguous_byte
 
 
 class MetaData(object):
@@ -60,7 +60,7 @@ class MetaData(object):
             return
 
         to_remove = []
-        max_len = get_max_from_contiguous_byte_ranges(byte_ranges)
+        max_len = get_last_contiguous_byte(byte_ranges)
         for offset, last in byte_ranges:
             if last > max_len:
                 break

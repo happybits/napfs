@@ -8,7 +8,7 @@ from .fs import open_file, read_file_chunk, checksum_response, copy_file, \
 from .data import MetaData
 
 from .helpers import parse_byte_range_header, \
-    get_max_from_contiguous_byte_ranges, parse_byte_ranges_from_list, \
+    get_last_contiguous_byte, parse_byte_ranges_from_list, \
     condense_byte_ranges
 
 
@@ -71,9 +71,9 @@ class Router(object):
         if not data.disabled:
             byte_ranges = parse_byte_ranges_from_list(data.parts)
 
-            max_last_byte = get_max_from_contiguous_byte_ranges(byte_ranges)
-            if last_byte == '' or last_byte > max_last_byte:
-                last_byte = max_last_byte
+            last_contig_byte = get_last_contiguous_byte(byte_ranges)
+            if last_byte == '' or last_byte > last_contig_byte:
+                last_byte = last_contig_byte
 
             if not byte_ranges:
                 raise falcon.HTTPNotFound()
@@ -90,12 +90,12 @@ class Router(object):
 
         try:
             f.seek(0, io.SEEK_END)
-            max_last_byte = f.tell() - 1
+            last_file_byte = f.tell() - 1
         except OSError:
             raise falcon.HTTPNotFound()
 
-        if last_byte == '' or last_byte > max_last_byte:
-            last_byte = max_last_byte
+        if last_byte == '' or last_byte > last_file_byte:
+            last_byte = last_file_byte
 
         length = last_byte - first_byte + 1
 
@@ -107,7 +107,7 @@ class Router(object):
             resp.append_header('Accept-Ranges', 'bytes')
             resp.append_header(
                 'Content-Range', 'bytes %s-%s/%s' %
-                                 (first_byte, last_byte, max_last_byte + 1))
+                                 (first_byte, last_byte, last_file_byte + 1))
             resp.status = falcon.HTTP_206
         else:
             resp.status = falcon.HTTP_200
