@@ -80,8 +80,8 @@ class Router(object):
 
             min_first_byte = min([row[0] for row in byte_ranges])
 
-            if first_byte < min_first_byte:
-                first_byte = min_first_byte
+            if min_first_byte > 0:
+                raise falcon.HTTPNotFound()
 
         try:
             f = open_file(self.get_local_path(path), 'rb')
@@ -125,7 +125,8 @@ class Router(object):
             def response():
                 yield hexdigest.encode('utf-8')
         else:
-            resp.append_header('Content-Length', "%s" % length)
+            if length > 0:
+                resp.append_header('Content-Length', "%d" % length)
             resp.append_header(
                 'Content-Type',
                 mimetypes.guess_type(path)[0] or 'application/octet-stream')

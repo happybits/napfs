@@ -210,6 +210,54 @@ class NonSequentialTest(unittest.TestCase):
         self.assertEqual(res.headers['x-parts'], '0-8')
 
 
+class MissingFirstTest(unittest.TestCase):
+    def setUp(self):
+        self.app = create_app()
+
+    def tearDown(self):
+        clean()
+
+    def test(self):
+        uri = "/test/%s/%s/%s.txt" % (
+            random_string(2),
+            random_string(2),
+            random_string(10))
+
+        self.app.patch("%s?offset=10" % uri, params='aaa',
+                       headers={'Content-Type': 'text/plain'})
+
+        self.app.patch("%s?offset=13" % uri, params='ccc',
+                       headers={'Content-Type': 'text/plain'})
+
+        res = self.app.get(uri, expect_errors=True)
+        self.assertEqual(res.status_code, 404)
+
+
+class FirstLastTest(unittest.TestCase):
+    def setUp(self):
+        self.app = create_app()
+
+    def tearDown(self):
+        clean()
+
+    def test(self):
+        uri = "/test/%s/%s/%s.txt" % (
+            random_string(2),
+            random_string(2),
+            random_string(10))
+
+        self.app.patch("%s?offset=3" % uri, params='bbb',
+                       headers={'Content-Type': 'text/plain'})
+
+        res = self.app.get(uri, headers={'Range': 'bytes=0-*'},
+                           expect_errors=True)
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(res.headers['Content-Length'], '0')
+
+        self.app.patch("%s?offset=0" % uri, params='aaa',
+                       headers={'Content-Type': 'text/plain'})
+
+
 class ExpireDataTest(unittest.TestCase):
     def setUp(self):
         self.app = create_app()
@@ -275,7 +323,8 @@ class SingleByteOffsetTest(unittest.TestCase):
         self.app.patch("%s?offset=1" % uri, params='a',
                        headers={'Content-Type': 'text/plain'})
 
-        res = self.app.get(uri)
+        res = self.app.get(uri, expect_errors=True)
+        self.assertEqual(res.status_code, 404)
         self.assertEqual(res.body, b'')
 
 
