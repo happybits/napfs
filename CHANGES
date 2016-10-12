@@ -1,1 +1,12 @@
-INITIAL PROJECT SETUP
+2016-10-12 John Loehrer <john@happybits.co>
+    * Add MIT license
+
+2016-09-16 John Loehrer <john@happybits.co>
+    * require first byte of file to be present to serve it
+
+2016-06-23 John Loehrer <john@happybits.co>
+    * moving parts and headers logic down into napfs
+
+2016-01-03 John Loehrer <john@happybits.co>
+    * first working version
+
