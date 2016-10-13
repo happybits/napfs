@@ -241,7 +241,8 @@ class Router(object):
     @staticmethod
     def _extract_headers(req):
         try:
-            headers = {k.lower(): v.lower() for k, v in req.headers.items()}
+            headers = {k.lower(): str(v).lower() for k, v in
+                       req.headers.items()}
             headers = {k[7:]: v for k, v in headers.items() if
                        k.startswith('x-head-')}
             return headers
