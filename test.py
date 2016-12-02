@@ -14,6 +14,8 @@ NAPFS_DATA_DIR = '/tmp/test-napfs'
 
 
 def create_app():
+    if not os.path.exists(NAPFS_DATA_DIR):
+        os.mkdir(NAPFS_DATA_DIR)
     return webtest.TestApp(napfs.create_app(
         data_dir=NAPFS_DATA_DIR, redis_connection=redis_connection))
 
