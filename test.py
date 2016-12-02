@@ -7,7 +7,7 @@ import os
 import shutil
 import redislite
 import napfs
-from napfs.helpers import condense_byte_ranges
+from napfs.helpers import condense_byte_ranges, get_last_contiguous_byte
 
 redis_connection = redislite.StrictRedis(dbfilename='/tmp/test-napfs.db')
 NAPFS_DATA_DIR = '/tmp/test-napfs'
@@ -135,6 +135,17 @@ class ByteRangeTests(unittest.TestCase):
         byte_ranges = [[0, 9], [0, 19], [20, 29], [40, 49]]
         res = condense_byte_ranges(byte_ranges)
         self.assertEqual(res, [[0, 29], [40, 49]])
+
+
+class ContiguousTests(unittest.TestCase):
+
+    def test_contiguous(self):
+        last = get_last_contiguous_byte([[0, 10], [11, 20]])
+        self.assertEqual(last, 20)
+        last = get_last_contiguous_byte([[0, 10], [0, 0], [5, 20]])
+        self.assertEqual(last, 20)
+        last = get_last_contiguous_byte([[0, 10], [22, 100], [11, 20]])
+        self.assertEqual(last, 20)
 
 
 class TestLongPatch(unittest.TestCase):
