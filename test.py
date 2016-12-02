@@ -7,7 +7,7 @@ import os
 import shutil
 import redislite
 import napfs
-from napfs.helpers import condense_byte_ranges, get_last_contiguous_byte
+from napfs.helpers import condense_byte_ranges, sum_gaps, get_last_contiguous_byte
 
 redis_connection = redislite.StrictRedis(dbfilename='/tmp/test-napfs.db')
 NAPFS_DATA_DIR = '/tmp/test-napfs'
@@ -149,6 +149,46 @@ class ContiguousTests(unittest.TestCase):
         last = get_last_contiguous_byte([[0, 10], [22, 100], [11, 20]])
         self.assertEqual(last, 20)
 
+class GapTests(unittest.TestCase):
+    def setUp(self):
+        self.app = create_app()
+
+    def tearDown(self):
+        clean()
+
+    def test_start_gap(self):
+        byte_ranges = [[10, 19]]
+        sum = sum_gaps(byte_ranges)
+        self.assertEqual(sum, 10)
+
+    def test_middle_gap(self):
+        byte_ranges = [[0, 8], [10, 19]]
+        sum = sum_gaps(byte_ranges)
+        self.assertEqual(sum, 1)
+
+    def test_end_gap(self):
+        byte_ranges = [[0, 29], [40, 49]]
+        sum = sum_gaps(byte_ranges)
+        self.assertEqual(sum, 10)
+
+    def test_many_gaps(self):
+        byte_ranges = [[1, 9], [11, 19], [21, 29], [40, 49]]
+        sum = sum_gaps(byte_ranges)
+        self.assertEqual(sum, 13)
+
+    def test_http_failure(self):
+        path = '/test.mp4'
+        res = self.app.patch("%s?offset=%d" % (path, 0), headers={'Content-Type': 'text/plain', 'Content-Length': '10'})
+        self.assertEqual(res.status_code, 200)
+
+        res = self.app.get("%s?offset=%d" % (path, 0), headers={'x-checksum': 'sha1', 'x-no-gaps': 'true'})
+        self.assertEqual(res.status_code, 200)
+
+        res = self.app.patch("%s?offset=%d" % (path, 10000), headers={'Content-Type': 'text/plain', 'Content-Length': '10'})
+        self.assertEqual(res.status_code, 200)
+
+        res = self.app.get("%s?offset=%d" % (path, 0), headers={'x-checksum': 'sha1', 'x-no-gaps': 'true'}, expect_errors=True)
+        self.assertEqual(res.status_code, 400)
 
 class TestLongPatch(unittest.TestCase):
     def setUp(self):

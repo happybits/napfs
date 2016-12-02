@@ -9,8 +9,7 @@ from .data import MetaData
 
 from .helpers import parse_byte_range_header, \
     get_last_contiguous_byte, parse_byte_ranges_from_list, \
-    condense_byte_ranges
-
+    condense_byte_ranges, sum_gaps
 
 class Router(object):
     allowed_methods = ['GET', 'PUT', 'PATCH', 'POST', 'DELETE']
@@ -70,6 +69,11 @@ class Router(object):
         data = self._data(path=path)
         if not data.disabled:
             byte_ranges = parse_byte_ranges_from_list(data.parts)
+
+            if req.get_header('x-no-gaps'):
+                sum = sum_gaps(byte_ranges)
+                if sum > 0:
+                    raise falcon.HTTPBadRequest('GAP FOUND', 'The file on disk had %s gap bytes.' % sum)
 
             last_contig_byte = get_last_contiguous_byte(byte_ranges)
             if last_byte == '' or last_byte > last_contig_byte:
@@ -201,6 +205,11 @@ class Router(object):
 
         content_length = int(req.get_header('Content-Length'))
 
+        path = req.path
+        headers = self._extract_headers(req)
+        part = '%d-%d' % (offset, offset + content_length - 1)
+        data = self._data(path=path, parts=[part], headers=headers)
+
         write_file_chunk(self.get_local_path(path),
                          stream=req.stream,
                          offset=offset,
@@ -210,10 +219,6 @@ class Router(object):
         resp.append_header('x-start', "%.6f" % start)
         resp.append_header('x-end', "%.6f" % time.time())
 
-        path = req.path
-        headers = self._extract_headers(req)
-        data = self._data(path=path, parts=[
-            '%d-%d' % (offset, offset + content_length - 1)], headers=headers)
         self._add_metadata_to_resp(resp, data)
 
     def on_delete(self, req, resp):
