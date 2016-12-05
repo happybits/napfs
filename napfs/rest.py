@@ -205,11 +205,6 @@ class Router(object):
 
         content_length = int(req.get_header('Content-Length'))
 
-        path = req.path
-        headers = self._extract_headers(req)
-        part = '%d-%d' % (offset, offset + content_length - 1)
-        data = self._data(path=path, parts=[part], headers=headers)
-
         write_file_chunk(self.get_local_path(path),
                          stream=req.stream,
                          offset=offset,
@@ -219,6 +214,10 @@ class Router(object):
         resp.append_header('x-start', "%.6f" % start)
         resp.append_header('x-end', "%.6f" % time.time())
 
+        path = req.path
+        headers = self._extract_headers(req)
+        data = self._data(path=path, parts=[
+            '%d-%d' % (offset, offset + content_length - 1)], headers=headers)
         self._add_metadata_to_resp(resp, data)
 
     def on_delete(self, req, resp):
