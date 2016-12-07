@@ -7,7 +7,8 @@ import os
 import shutil
 import redislite
 import napfs
-from napfs.helpers import condense_byte_ranges, sum_gaps, get_last_contiguous_byte
+from napfs.helpers import condense_byte_ranges, sum_gaps, \
+    get_last_contiguous_byte
 
 redis_connection = redislite.StrictRedis(dbfilename='/tmp/test-napfs.db')
 NAPFS_DATA_DIR = '/tmp/test-napfs'
@@ -140,7 +141,6 @@ class ByteRangeTests(unittest.TestCase):
 
 
 class ContiguousTests(unittest.TestCase):
-
     def test_contiguous(self):
         last = get_last_contiguous_byte([[0, 10], [11, 20]])
         self.assertEqual(last, 20)
@@ -148,6 +148,7 @@ class ContiguousTests(unittest.TestCase):
         self.assertEqual(last, 20)
         last = get_last_contiguous_byte([[0, 10], [22, 100], [11, 20]])
         self.assertEqual(last, 20)
+
 
 class GapTests(unittest.TestCase):
     def setUp(self):
@@ -178,17 +179,27 @@ class GapTests(unittest.TestCase):
 
     def test_http_failure(self):
         path = '/test.mp4'
-        res = self.app.patch("%s?offset=%d" % (path, 0), headers={'Content-Type': 'text/plain', 'Content-Length': '10'})
+        res = self.app.patch(
+            "%s?offset=%d" % (path, 0),
+            headers={'Content-Type': 'text/plain', 'Content-Length': '10'})
         self.assertEqual(res.status_code, 200)
 
-        res = self.app.get("%s?offset=%d" % (path, 0), headers={'x-checksum': 'sha1', 'x-no-gaps': 'true'})
+        res = self.app.get(
+            "%s?offset=%d" % (path, 0),
+            headers={'x-checksum': 'sha1', 'x-no-gaps': 'true'})
         self.assertEqual(res.status_code, 200)
 
-        res = self.app.patch("%s?offset=%d" % (path, 10000), headers={'Content-Type': 'text/plain', 'Content-Length': '10'})
+        res = self.app.patch(
+            "%s?offset=%d" % (path, 10000),
+            headers={'Content-Type': 'text/plain', 'Content-Length': '10'})
         self.assertEqual(res.status_code, 200)
 
-        res = self.app.get("%s?offset=%d" % (path, 0), headers={'x-checksum': 'sha1', 'x-no-gaps': 'true'}, expect_errors=True)
+        res = self.app.get(
+            "%s?offset=%d" % (path, 0),
+            headers={'x-checksum': 'sha1', 'x-no-gaps': 'true'},
+            expect_errors=True)
         self.assertEqual(res.status_code, 400)
+
 
 class TestLongPatch(unittest.TestCase):
     def setUp(self):
