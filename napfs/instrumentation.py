@@ -45,10 +45,8 @@ if newrelic is not None:
 
     # noinspection PyBroadException
     try:
-        newrelic_config = os.getenv('NEW_RELIC_CONFIG_FILE', None)
-        if newrelic_config and os.path.getsize(newrelic_config) > 0:
-            environment = os.getenv('NEW_RELIC_CONFIG_ENV', 'development')
-            initialize(newrelic_config, environment=environment)
+        if os.getenv('NEW_RELIC_LICENSE_KEY'):
+            initialize()
     except Exception:
         pass
 
