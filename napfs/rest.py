@@ -9,7 +9,7 @@ from .data import MetaData
 
 from .helpers import parse_byte_range_header, \
     get_last_contiguous_byte, parse_byte_ranges_from_list, \
-    condense_byte_ranges, sum_gaps
+    condense_byte_ranges
 
 
 class Router(object):
@@ -52,22 +52,14 @@ class Router(object):
                 allowed_methods=self.allowed_methods
             )
 
-    def _get_byte_range(self, req, resp):
+    def _get_byte_range(self, data, req, resp):
         first_byte, last_byte = parse_byte_range_header(
             req.get_header('range'))
 
-        data = self._data(path=req.path)
         if data.disabled:
             return first_byte, last_byte
 
         byte_ranges = parse_byte_ranges_from_list(data.parts)
-
-        if req.get_header('x-no-gaps'):
-            gap_bytes = sum_gaps(byte_ranges)
-            if gap_bytes > 0:
-                raise falcon.HTTPBadRequest(
-                    'GAP FOUND',
-                    'The file on disk had %s gap bytes.' % gap_bytes)
 
         last_contig_byte = get_last_contiguous_byte(byte_ranges)
         if last_byte == '' or last_byte > last_contig_byte:
@@ -80,8 +72,6 @@ class Router(object):
 
         if min_first_byte > 0:
             raise falcon.HTTPNotFound()
-
-        self._add_metadata_to_resp(resp, data)
 
         return first_byte, last_byte
 
@@ -98,7 +88,11 @@ class Router(object):
         if not path:
             raise falcon.HTTPNotFound()
 
-        first_byte, last_byte = self._get_byte_range(req, resp)
+        data = self._data(path=req.path)
+
+        first_byte, last_byte = self._get_byte_range(data, req, resp)
+
+        self._add_metadata_to_resp(resp, data)
 
         try:
             f = open_file(self.get_local_path(path), 'rb')
@@ -268,8 +262,9 @@ class Router(object):
     def _add_metadata_to_resp(resp, data):
         if data.disabled:
             return
-        parts = ['%d-%d' % (row[0], row[1]) for row in condense_byte_ranges(
-            parse_byte_ranges_from_list(data.parts))]
+        byte_ranges = \
+            condense_byte_ranges(parse_byte_ranges_from_list(data.parts))
+        parts = ['%d-%d' % (row[0], row[1]) for row in byte_ranges]
         resp.append_header('x-parts', ','.join(parts))
         for k, v in data.headers.items():
             try:

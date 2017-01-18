@@ -78,30 +78,6 @@ def get_last_contiguous_byte(parts):
     return 0 if mp is None else mp[1]
 
 
-def sum_gaps(parts):
-    """
-    given a parsed list of min/max byte ranges in ascending order,
-    calculate the sum of all gaps in bytes to limit the total gaps allowed
-    preventing a runaway sparse file
-    :param parts: list
-    :return: int
-    """
-    sorted_parts = sorted(parts)
-
-    sum = 0
-    max = 0
-
-    # pylint: disable=unsubscriptable-object
-    for part in sorted_parts:
-        start = part[0]
-        end = part[1]
-        if max < start:
-            sum += start - max
-        max = end + 1
-
-    return sum
-
-
 def condense_byte_ranges(byte_ranges):
     """
     any overlapping byte-ranges can be consolidated into a single range.
