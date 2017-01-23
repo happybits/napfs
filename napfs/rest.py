@@ -15,12 +15,13 @@ from .helpers import parse_byte_range_header, \
 class Router(object):
     allowed_methods = ['GET', 'PUT', 'PATCH', 'POST', 'DELETE']
 
-    __slots__ = ['data_dir', 'path_tpl', '_db']
+    __slots__ = ['data_dir', 'path_tpl', '_db', 'passthru']
 
-    def __init__(self, data_dir, redis_connection=None):
+    def __init__(self, data_dir, redis_connection=None, passthrough_headers=None):
         self.data_dir = data_dir
         self.path_tpl = data_dir + "%s"
         self._db = redis_connection
+        self.passthru = passthrough_headers or []
 
     def get_local_path(self, uri):
         return self.path_tpl % uri
@@ -247,19 +248,21 @@ class Router(object):
 
         self._data(path=path, reset=True)
 
-    @staticmethod
-    def _extract_headers(req):
+    def _extract_headers(self, req):
         try:
-            headers = {k.lower(): str(v).lower() for k, v in
+            raw = {k.lower(): str(v).lower() for k, v in
                        req.headers.items()}
-            headers = {k[7:]: v for k, v in headers.items() if
-                       k.startswith('x-head-')}
+            headers = {}
+            for k, v in raw.items():
+                if k in self.passthru:
+                    headers[k] = v
+                elif k.startswith('x-head-'):
+                    headers[k[7:]] = v
             return headers
         except TypeError:
             return {}
 
-    @staticmethod
-    def _add_metadata_to_resp(resp, data):
+    def _add_metadata_to_resp(self, resp, data):
         if data.disabled:
             return
         byte_ranges = \
@@ -269,7 +272,10 @@ class Router(object):
         for k, v in data.headers.items():
             try:
                 resp.append_header(
-                    'x-head-{name}'.format(name=k),
+                    '{prefix}{name}'.format(
+                        prefix='' if k in self.passthru
+                                else 'x-head-',
+                        name=k),
                     '{}'.format(v))
             except:
                 pass

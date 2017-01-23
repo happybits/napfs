@@ -7,6 +7,7 @@ import os
 import shutil
 import redislite
 import napfs
+import falcon
 from napfs.helpers import condense_byte_ranges, \
     get_last_contiguous_byte
 
@@ -19,6 +20,14 @@ def create_app():
         os.mkdir(NAPFS_DATA_DIR)
     return webtest.TestApp(napfs.create_app(
         data_dir=NAPFS_DATA_DIR, redis_connection=redis_connection))
+
+
+def create_router_app(router):
+    if not os.path.exists(NAPFS_DATA_DIR):
+        os.mkdir(NAPFS_DATA_DIR)
+    app = falcon.API()
+    app.add_sink(router, '/')
+    return webtest.TestApp(app)
 
 
 def create_app_no_redis():
@@ -338,6 +347,33 @@ class SingleByteOffsetTest(unittest.TestCase):
         res = self.app.get(uri, expect_errors=True)
         self.assertEqual(res.status_code, 404)
         self.assertEqual(res.body, b'')
+
+
+class PassthroughHeadersTest(unittest.TestCase):
+    def setUp(self):
+        self.app = create_app()
+
+        router = napfs.Router(data_dir=NAPFS_DATA_DIR,
+                              redis_connection=redis_connection,
+                              passthrough_headers=['x-yo'])
+        self.passthrough_app = create_router_app(router)
+
+    def tearDown(self):
+        clean()
+
+    def test_stripping_headers(self):
+        uri = "/test/1/2/3"
+        self.app.patch(uri, params='a',
+                       headers={'x-yo': 'yoback'})
+        res = self.app.get(uri)
+        self.assertFalse('x-yo' in res.headers)
+
+    def test_passthrough_headers(self):
+        uri = "/test/1/2/3"
+        self.passthrough_app.patch(uri, params='a',
+                       headers={'x-yo': 'yoback'})
+        res = self.passthrough_app.get(uri)
+        self.assertEqual(res.headers['x-yo'], 'yoback')
 
 
 class VideoContentTypeCheck(unittest.TestCase):
