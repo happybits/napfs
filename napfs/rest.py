@@ -17,11 +17,13 @@ class Router(object):
 
     __slots__ = ['data_dir', 'path_tpl', '_db', 'passthru']
 
-    def __init__(self, data_dir, redis_connection=None, passthrough_headers=None):
+    def __init__(self, data_dir, redis_connection=None,
+                 passthrough_headers=None):
         self.data_dir = data_dir
         self.path_tpl = data_dir + "%s"
         self._db = redis_connection
         self.passthru = passthrough_headers or []
+        self.passthru = [x.lower() for x in self.passthru]
 
     def get_local_path(self, uri):
         return self.path_tpl % uri
@@ -250,10 +252,9 @@ class Router(object):
 
     def _extract_headers(self, req):
         try:
-            raw = {k.lower(): str(v).lower() for k, v in
-                       req.headers.items()}
             headers = {}
-            for k, v in raw.items():
+            for k, v in req.headers.items():
+                k = k.lower()
                 if k in self.passthru:
                     headers[k] = v
                 elif k.startswith('x-head-'):
@@ -273,8 +274,7 @@ class Router(object):
             try:
                 resp.append_header(
                     '{prefix}{name}'.format(
-                        prefix='' if k in self.passthru
-                                else 'x-head-',
+                        prefix='' if k in self.passthru else 'x-head-',
                         name=k),
                     '{}'.format(v))
             except:

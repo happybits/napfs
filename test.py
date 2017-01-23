@@ -158,6 +158,7 @@ class ContiguousTests(unittest.TestCase):
         last = get_last_contiguous_byte([[0, 10], [22, 100], [11, 20]])
         self.assertEqual(last, 20)
 
+
 class TestLongPatch(unittest.TestCase):
     def setUp(self):
         self.app = create_app()
@@ -355,8 +356,8 @@ class PassthroughHeadersTest(unittest.TestCase):
 
         router = napfs.Router(data_dir=NAPFS_DATA_DIR,
                               redis_connection=redis_connection,
-                              passthrough_headers=['x-yo'])
-        self.passthrough_app = create_router_app(router)
+                              passthrough_headers=['x-YO'])
+        self.passthru_app = create_router_app(router)
 
     def tearDown(self):
         clean()
@@ -370,10 +371,9 @@ class PassthroughHeadersTest(unittest.TestCase):
 
     def test_passthrough_headers(self):
         uri = "/test/1/2/3"
-        self.passthrough_app.patch(uri, params='a',
-                       headers={'x-yo': 'yoback'})
-        res = self.passthrough_app.get(uri)
-        self.assertEqual(res.headers['x-yo'], 'yoback')
+        self.passthru_app.patch(uri, params='a', headers={'x-yo': 'yoBack'})
+        res = self.passthru_app.get(uri)
+        self.assertEqual(res.headers['x-yo'], 'yoBack')
 
 
 class VideoContentTypeCheck(unittest.TestCase):
