@@ -4,6 +4,7 @@ import fcntl
 import hashlib
 import os
 import shutil
+from helpers import InvalidChecksumException
 
 __all__ = []
 
@@ -61,7 +62,8 @@ def _initialize_file_path(path):
     open(path, 'ab').close()
 
 
-def write_file_chunk(path, stream, offset, chunk_size):
+def write_file_chunk(path, stream, offset, chunk_size,
+                     checksum=None, checksum_type=None):
 
     _initialize_file_path(path)
 
@@ -71,7 +73,14 @@ def write_file_chunk(path, stream, offset, chunk_size):
         else:
             fcntl.flock(f, fcntl.LOCK_EX)
         f.seek(offset)
-        f.write(stream.read(chunk_size))
+        chunk = stream.read(chunk_size)
+        if checksum is not None:
+            hashcalc = supported_checksum_methods.get(checksum_type,
+                                                      hashlib.sha1)()
+            hashcalc.update(chunk)
+            if hashcalc.hexdigest() != checksum:
+                raise InvalidChecksumException()
+        f.write(chunk)
         return f.tell()
 
 

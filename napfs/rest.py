@@ -9,7 +9,7 @@ from .data import MetaData
 
 from .helpers import parse_byte_range_header, \
     get_last_contiguous_byte, parse_byte_ranges_from_list, \
-    condense_byte_ranges
+    condense_byte_ranges, InvalidChecksumException
 
 
 class Router(object):
@@ -162,8 +162,8 @@ class Router(object):
         if src:
             start = time.time()
             if src[0] != '/':
-                raise falcon.HTTPInvalidParam(
-                    'invalid source %s' % src, param_name='x-source')
+                self._error_to_response(resp, falcon.HTTPInvalidParam(
+                    'invalid source %s' % src, param_name='x-source'))
 
             copy_file(self.get_local_path(src), self.get_local_path(path))
             src_data = self._data(path=src)
@@ -183,7 +183,9 @@ class Router(object):
             write_file_chunk(self.get_local_path(path),
                              stream=req.stream,
                              offset=0,
-                             chunk_size=content_length)
+                             chunk_size=content_length,
+                             checksum=req.get_header('x-checksum'),
+                             checksum_type=req.get_header('x-checksum-type'))
 
             resp.body = 'OK'
             resp.append_header('x-start', "%.6f" % start)
@@ -213,10 +215,18 @@ class Router(object):
 
         content_length = int(req.get_header('Content-Length'))
 
-        write_file_chunk(self.get_local_path(path),
-                         stream=req.stream,
-                         offset=offset,
-                         chunk_size=content_length)
+        try:
+            write_file_chunk(self.get_local_path(path),
+                             stream=req.stream,
+                             offset=offset,
+                             chunk_size=content_length,
+                             checksum=req.get_header('x-checksum'),
+                             checksum_type=req.get_header('x-checksum-type'))
+        except InvalidChecksumException:
+            self._error_to_response(resp,
+                                    falcon.HTTPPreconditionFailed(
+                                        'CHECKSUM_FAIL',
+                                        'Checksum mismatch.'))
 
         resp.body = 'OK'
         resp.append_header('x-start', "%.6f" % start)
@@ -282,3 +292,10 @@ class Router(object):
 
     def _data(self, **kwargs):
         return MetaData(db=self._db, **kwargs)
+
+    def _error_to_response(self, resp, ex):
+        if ex.title is not None:
+            resp.append_header('X-ERROR-CODE', ex.title)
+        if ex.description is not None:
+            resp.append_header('X-ERROR-MESSAGE', ex.description)
+        raise ex

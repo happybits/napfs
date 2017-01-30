@@ -4,6 +4,10 @@ BYTE_RANGE_STRING_PATTERN = re.compile(r'^([0-9]+)\-([0-9]+)$')
 _BYTE_RANGE_HEADER_PATTERN = re.compile(r'^bytes=([0-9]+)\-([0-9]+)?$')
 
 
+class InvalidChecksumException(Exception):
+    pass
+
+
 def parse_byte_range_header(range_header):
     """
     when the client/browser sends a byte range request header, parse it into

@@ -8,6 +8,7 @@ import shutil
 import redislite
 import napfs
 import falcon
+import hashlib
 from napfs.helpers import condense_byte_ranges, \
     get_last_contiguous_byte
 
@@ -348,6 +349,39 @@ class SingleByteOffsetTest(unittest.TestCase):
         res = self.app.get(uri, expect_errors=True)
         self.assertEqual(res.status_code, 404)
         self.assertEqual(res.body, b'')
+
+
+class ChecksumPartTest(unittest.TestCase):
+    def setUp(self):
+        self.app = create_app()
+
+    def tearDown(self):
+        clean()
+
+    def test_fail(self):
+        uri = "/test/%s.txt" % random_string(10)
+        res = self.app.patch("%s" % uri, params='a',
+                             headers={'Content-Type': 'text/plain',
+                                      'x-checksum': 'garbage'},
+                             expect_errors=True)
+        self.assertEqual(res.status_code, 412)
+        self.assertEqual(res.headers['x-error-code'], 'CHECKSUM_FAIL')
+
+        res = self.app.get(uri, expect_errors=True)
+        self.assertEqual(res.status_code, 404)
+
+    def test_success(self):
+        uri = "/test/%s.txt" % random_string(10)
+        body = 'a'
+        checksum = hashlib.sha1()
+        checksum.update(body)
+        res = self.app.patch("%s" % uri, params=body,
+                             headers={'Content-Type': 'text/plain',
+                                      'x-checksum': checksum.hexdigest()})
+        self.assertEqual(res.status_code, 200)
+
+        res = self.app.get(uri)
+        self.assertEqual(res.status_code, 200)
 
 
 class PassthroughHeadersTest(unittest.TestCase):
