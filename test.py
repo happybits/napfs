@@ -374,7 +374,7 @@ class ChecksumPartTest(unittest.TestCase):
         uri = "/test/%s.txt" % random_string(10)
         body = 'a'
         checksum = hashlib.sha1()
-        checksum.update(body)
+        checksum.update(body.encode('utf-8'))
         res = self.app.patch("%s" % uri, params=body,
                              headers={'Content-Type': 'text/plain',
                                       'x-checksum': checksum.hexdigest()})

@@ -4,7 +4,7 @@ import fcntl
 import hashlib
 import os
 import shutil
-from helpers import InvalidChecksumException
+from .helpers import InvalidChecksumException
 
 __all__ = []
 
