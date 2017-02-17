@@ -8,6 +8,8 @@ from .helpers import InvalidChecksumException
 
 __all__ = []
 
+READ_BLOCK_SIZE = 1024 * 8
+
 # a mapping of the names for checksum methods.
 supported_checksum_methods = {
     'md5': hashlib.md5,
@@ -103,7 +105,7 @@ def read_file_chunk(f, first_byte, length):
             f.seek(first_byte)
             bytes_left = length
             while bytes_left > 0:
-                chunk_size = min(bytes_left, 1024)
+                chunk_size = min(bytes_left, READ_BLOCK_SIZE)
                 data = f.read(chunk_size)
                 bytes_left -= chunk_size
                 yield data
