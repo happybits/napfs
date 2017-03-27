@@ -42,6 +42,8 @@ class Router(object):
 
         if method == 'GET':
             return self.on_get(req, resp)
+        elif method == 'HEAD':
+            return self.on_head(req, resp)
         elif method == 'PATCH':
             return self.on_patch(req, resp)
         elif method == 'DELETE':
@@ -79,6 +81,12 @@ class Router(object):
         return first_byte, last_byte
 
     def on_get(self, req, resp):
+        return self._get(req, resp, True)
+
+    def on_head(self, req, resp):
+        return self._get(req, resp, False)
+
+    def _get(self, req, resp, body):
         """
         Fetch a file or byte range request.
 
@@ -131,10 +139,15 @@ class Router(object):
         # if the client wants a checksum of the content instead of the actual
         # content, do a little trickery to read the data from the generator
         # above and substitute the checksum value for the content instead.
+        # if the client is requesting the head, add it to the header as the
+        # body will be truncated.
         if checksum:
             hexdigest = checksum_response(response, checksum)
             resp.append_header('Content-Length', "%s" % len(hexdigest))
             resp.append_header('Content-Type', 'text/plain')
+            if not body:
+                resp.append_header('X-Signature', '%s=%s' %
+                                   (checksum, hexdigest.encode('utf-8')))
 
             def response():
                 yield hexdigest.encode('utf-8')
@@ -144,7 +157,8 @@ class Router(object):
             resp.append_header(
                 'Content-Type',
                 mimetypes.guess_type(path)[0] or 'application/octet-stream')
-        resp.stream = response()
+        if body:
+            resp.stream = response()
 
     def on_post(self, req, resp):
         """

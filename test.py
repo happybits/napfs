@@ -94,6 +94,12 @@ class TestMain(unittest.TestCase):
         self.assertEqual(res.body, data + chunk)
         self.assertEqual(res.headers['x-parts'], '0-2047,2148-2151')
 
+        res = app.head(uri)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(len(res.body), 0)
+        self.assertEqual(res.headers['content-length'],
+                         '%d' % len(data + chunk))
+
         res = app.delete(uri)
         self.assertEqual(res.status_code, 200)
 
@@ -129,8 +135,17 @@ class TestMain(unittest.TestCase):
         data = random_string()
         app = create_app()
         app.post(uri, headers={'Content-Type': 'text/plain'}, params=data)
+        sha = hashlib.sha1()
+        sha.update(data)
+        digest = sha.hexdigest().encode('utf-8')
+
         res = app.get(uri, headers={'x-checksum': 'sha1'})
         self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.body, digest)
+
+        res = app.head(uri, headers={'x-checksum': 'sha1'})
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.headers['x-signature'], 'sha1=%s' % digest)
 
 
 class ByteRangeTests(unittest.TestCase):
