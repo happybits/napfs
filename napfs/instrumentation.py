@@ -14,7 +14,6 @@ if newrelic is not None:
     from newrelic.agent import (
         callable_name,
         FunctionTrace,
-        current_transaction,
         set_transaction_name,
         record_exception,
         initialize,
@@ -29,7 +28,6 @@ if newrelic is not None:
             if group == "Python/napfs":
                 set_transaction_name(txn_name)
             with FunctionTrace(
-                transaction=current_transaction(),
                 name=txn_name,
                 group=group
 
