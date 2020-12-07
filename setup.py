@@ -2,12 +2,14 @@
 import os
 from os import path
 from setuptools import setup
-import imp
+import importlib.machinery
 
 MYDIR = path.abspath(os.path.dirname(__file__))
 long_description = open(os.path.join(MYDIR, 'README.md')).read()
-version = imp.load_source('version',
-                          path.join('.', 'napfs', 'version.py')).__version__
+version = importlib.machinery.SourceFileLoader(
+    'version',
+    path.join('.', 'napfs', 'version.py')
+).load_module().__version__
 
 cmdclass = {}
 ext_modules = []

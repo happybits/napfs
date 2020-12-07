@@ -301,7 +301,7 @@ class Router(object):
                         prefix='' if k in self.passthru else 'x-head-',
                         name=k),
                     '{}'.format(v))
-            except:
+            except Exception:
                 pass
 
     def _data(self, **kwargs):

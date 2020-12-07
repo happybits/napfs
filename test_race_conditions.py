@@ -94,9 +94,9 @@ if __name__ == '__main__':
     reqs = []
     for x in range(0, args.chunk_count):
         d = "    %s - %s" % (x, chunk)
-        l = len(d)
-        reqs.append((path, d, offset, l))
-        offset += l
+        d_len = len(d)
+        reqs.append((path, d, offset, d_len))
+        offset += d_len
 
     threads = []
     for a in reqs:
