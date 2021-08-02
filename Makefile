@@ -12,6 +12,7 @@ help:
 	@echo "  test            run test suite"
 	@echo "  sdist           make a source distribution"
 	@echo "  bdist           make an egg distribution"
+	@echo "  wheel           make a wheel distribution"
 	@echo "  install         install package"
 	@echo " *** CI Commands ***"
 	@echo "  test            starts/activates the test cluster nodes and runs tox test"
@@ -45,6 +46,9 @@ sdist: cleanmeta
 
 bdist: cleanmeta
 	python setup.py bdist_egg
+
+wheel: cleanmeta
+	python setup.py bdist_wheel
 
 install:
 	python setup.py install

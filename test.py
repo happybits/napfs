@@ -15,6 +15,9 @@ from napfs.helpers import condense_byte_ranges, \
 redis_connection = redislite.StrictRedis(dbfilename='/tmp/test-napfs.db')
 NAPFS_DATA_DIR = '/tmp/test-napfs'
 
+NOT_FOUND_BODY = b'{"title": "404 Not Found"}'
+NOT_FOUND_BODY_LEN = str(len(NOT_FOUND_BODY))
+
 
 def create_app():
     if not os.path.exists(NAPFS_DATA_DIR):
@@ -290,7 +293,7 @@ class FirstLastTest(unittest.TestCase):
         res = self.app.get(uri, headers={'Range': 'bytes=0-*'},
                            expect_errors=True)
         self.assertEqual(res.status_code, 404)
-        self.assertEqual(res.headers['Content-Length'], '0')
+        self.assertEqual(res.headers['Content-Length'], NOT_FOUND_BODY_LEN)
 
         self.app.patch("%s?offset=0" % uri, params='aaa',
                        headers={'Content-Type': 'text/plain'})
@@ -363,7 +366,7 @@ class SingleByteOffsetTest(unittest.TestCase):
 
         res = self.app.get(uri, expect_errors=True)
         self.assertEqual(res.status_code, 404)
-        self.assertEqual(res.body, b'')
+        self.assertEqual(res.body, NOT_FOUND_BODY)
 
 
 class ChecksumPartTest(unittest.TestCase):
