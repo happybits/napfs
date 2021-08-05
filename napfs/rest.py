@@ -185,7 +185,7 @@ class Router(object):
             data = self._data(path=path, reset=True, parts=src_data.parts,
                               headers=headers)
 
-            resp.body = 'OK'
+            resp.text = 'OK'
             resp.append_header('x-start', "%.6f" % start)
             resp.append_header('x-end', "%.6f" % time.time())
 
@@ -201,7 +201,7 @@ class Router(object):
                              checksum=req.get_header('x-checksum'),
                              checksum_type=req.get_header('x-checksum-type'))
 
-            resp.body = 'OK'
+            resp.text = 'OK'
             resp.append_header('x-start', "%.6f" % start)
             resp.append_header('x-end', "%.6f" % time.time())
             data = self._data(path=path,
@@ -242,7 +242,7 @@ class Router(object):
                                         'CHECKSUM_FAIL',
                                         'Checksum mismatch.'))
 
-        resp.body = 'OK'
+        resp.text = 'OK'
         resp.append_header('x-start', "%.6f" % start)
         resp.append_header('x-end', "%.6f" % time.time())
 
@@ -270,7 +270,7 @@ class Router(object):
                 description='the file is still present after attempting '
                             'to delete it')
 
-        resp.body = 'OK'
+        resp.text = 'OK'
 
         self._data(path=path, reset=True)
 

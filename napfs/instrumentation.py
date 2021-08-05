@@ -15,7 +15,7 @@ if newrelic is not None:
         callable_name,
         FunctionTrace,
         set_transaction_name,
-        record_exception,
+        notice_error,
         initialize,
         WSGIApplicationWrapper,
     )
@@ -36,7 +36,7 @@ if newrelic is not None:
                     return f(*args, **kwargs)
                 except Exception as e:
                     if not isinstance(e, falcon.HTTPNotFound):
-                        record_exception(*sys.exc_info())
+                        notice_error(sys.exc_info())
                     raise
 
         return inner
